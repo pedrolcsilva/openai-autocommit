@@ -13,6 +13,5 @@ done < <(echo "$commits")
 
 for commit in "${commits_to_generate[@]}"; do
     diff=$(git show "$commit")
-    python main.py "$diff" "$commit"
-
+    python scripts/main.py "$diff" "$commit"
 done

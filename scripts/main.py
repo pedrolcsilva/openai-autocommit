@@ -2,6 +2,7 @@ import sys
 from ia_config import IaConfig
 from ia_manager import IaManager
 import subprocess
+import os
 
 def main() :
     PROJECT_NAME = 'IA Project'
@@ -15,15 +16,31 @@ being able to generate commits based on the commit content.'
     config = IaConfig()
     client = IaManager(config)
 
-    message = subprocess.check_output(["git", "show", "--name-only", sys.argv[0]])
-    print("{}".format(message))
-    #message = message.decode("utf-8")
 
     message = sys.argv[1]
     commit_hash = sys.argv[2]
-    new_commit = client.chat(message)
-    print("{}".format(commit_hash))
-    a = subprocess.check_output(["git", "commit", "--amend", "-m", new_commit])
 
-    print("{}".format(a))
+    rebase_command = ['git', 'rebase', '-i', commit_hash+'~1']
+    subprocess.run(rebase_command, check=False)
+    #message = message.decode("utf-8")
+    rebase_message = subprocess.check_output(['git', 'log', '-n', '1', '--pretty=format:%s%n%n%b', commit_hash])
+    commit_message = rebase_message.decode('utf-8').strip()
+    
+    new_commit = client.chat(message)
+
+    todo_file = os.path.join(os.getcwd(), '.git/rebase-merge/git-rebase-todo')
+    with open(todo_file, 'r+') as file:
+        content = file.read()
+        file.seek(0, 0)
+        new_content = content.replace(f"pick {commit_hash} ", f"reword {commit_hash} ")
+        file.write(new_content)
+        file.truncate()
+
+    with open('../.git/COMMIT_EDITMSG', 'r+') as file:
+        content = file.read()
+        file.seek(0, 0)
+        new_content = content.replace(f"auto", f"{new_commit}")
+        file.write(new_content)
+
+    #subprocess.run(['git', 'commit', '--amend', '-m', new_commit], check=True)
 main()
